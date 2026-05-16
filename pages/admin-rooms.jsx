@@ -1,26 +1,40 @@
 // pages/admin-rooms.jsx
 const AdminRoomsPage = ({ toast }) => {
   const { t, lang } = useI18n();
-  const [rooms, setRooms] = React.useState(ROOMS);
+  const { rooms, addRoom, editRoom, removeRoom: removeRoomApi } = useData();
   const [editing, setEditing] = React.useState(null);
   const [confirmDel, setConfirmDel] = React.useState(null);
+  const [busy, setBusy] = React.useState(false);
 
-  const saveRoom = (r) => {
-    if (r.id) {
-      setRooms(prev => prev.map(x => x.id === r.id ? r : x));
-      toast(lang === "th" ? "บันทึกข้อมูลห้องเรียบร้อย" : "Room saved");
-    } else {
-      const id = "r" + Math.floor(Math.random() * 9000 + 100);
-      setRooms(prev => [...prev, { ...r, id }]);
-      toast(lang === "th" ? "เพิ่มห้องใหม่เรียบร้อย" : "Room added");
+  const saveRoom = async (r) => {
+    setBusy(true);
+    try {
+      if (r.id) {
+        await editRoom(r);
+        toast(lang === "th" ? "บันทึกข้อมูลห้องเรียบร้อย" : "Room saved");
+      } else {
+        await addRoom(r);
+        toast(lang === "th" ? "เพิ่มห้องใหม่เรียบร้อย" : "Room added");
+      }
+      setEditing(null);
+    } catch (err) {
+      toast(lang === "th" ? `เกิดข้อผิดพลาด: ${err.message}` : `Error: ${err.message}`, "err");
+    } finally {
+      setBusy(false);
     }
-    setEditing(null);
   };
 
-  const removeRoom = (id) => {
-    setRooms(prev => prev.filter(r => r.id !== id));
-    setConfirmDel(null);
-    toast(lang === "th" ? "ยกเลิกห้องเรียบร้อย" : "Room removed");
+  const doRemove = async (id) => {
+    setBusy(true);
+    try {
+      await removeRoomApi(id);
+      setConfirmDel(null);
+      toast(lang === "th" ? "ยกเลิกห้องเรียบร้อย" : "Room removed");
+    } catch (err) {
+      toast(lang === "th" ? `เกิดข้อผิดพลาด: ${err.message}` : `Error: ${err.message}`, "err");
+    } finally {
+      setBusy(false);
+    }
   };
 
   return (
@@ -73,12 +87,12 @@ const AdminRoomsPage = ({ toast }) => {
         </table>
       </div>
 
-      {editing && <RoomEditModal room={editing.id ? editing : null} onClose={() => setEditing(null)} onSave={saveRoom} />}
+      {editing && <RoomEditModal room={editing.id ? editing : null} onClose={() => setEditing(null)} onSave={saveRoom} busy={busy} />}
       {confirmDel && (
         <Modal open onClose={() => setConfirmDel(null)} title={lang === "th" ? "ยืนยันยกเลิกห้อง" : "Confirm delete"} sub={confirmDel.name}
           footer={<>
             <button className="btn" onClick={() => setConfirmDel(null)}>{t("cancel")}</button>
-            <button className="btn btn-danger" onClick={() => removeRoom(confirmDel.id)}>{t("delete")}</button>
+            <button className="btn btn-danger" disabled={busy} onClick={() => doRemove(confirmDel.id)}>{t("delete")}</button>
           </>}>
           <div className="muted" style={{ fontSize: 13 }}>
             {lang === "th"
@@ -91,9 +105,9 @@ const AdminRoomsPage = ({ toast }) => {
   );
 };
 
-const RoomEditModal = ({ room, onClose, onSave }) => {
+const RoomEditModal = ({ room, onClose, onSave, busy }) => {
   const { t, lang } = useI18n();
-  const [form, setForm] = React.useState(room || { name: "", capacity: 6, floor: 11, amenities: [], color: "#fbbf24" });
+  const [form, setForm] = React.useState(room || { name: "", short: "", capacity: 6, floor: 11, amenities: [], color: "#fbbf24" });
   const [newAmenity, setNewAmenity] = React.useState("");
   const upd = (k, v) => setForm(f => ({ ...f, [k]: v }));
   const addAmenity = () => {
@@ -110,12 +124,18 @@ const RoomEditModal = ({ room, onClose, onSave }) => {
       sub={room?.id && `ID: ${room.id}`}
       footer={<>
         <button className="btn" onClick={onClose}>{t("cancel")}</button>
-        <button className="btn btn-primary" disabled={!form.name.trim()} onClick={() => onSave(form)}>{t("save")}</button>
+        <button className="btn btn-primary" disabled={busy || !form.name.trim()} onClick={() => onSave(form)}>{t("save")}</button>
       </>}>
       <div className="col" style={{ gap: 14 }}>
-        <div className="field">
-          <label className="field-label">{t("col_name")}</label>
-          <input className="input" value={form.name} onChange={e => upd("name", e.target.value)} placeholder={lang === "th" ? "เช่น Sukhumvit Boardroom" : "e.g. Sukhumvit Boardroom"} />
+        <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 10 }}>
+          <div className="field">
+            <label className="field-label">{t("col_name")}</label>
+            <input className="input" value={form.name} onChange={e => upd("name", e.target.value)} placeholder={lang === "th" ? "เช่น Sukhumvit Boardroom" : "e.g. Sukhumvit Boardroom"} />
+          </div>
+          <div className="field">
+            <label className="field-label">{lang === "th" ? "ชื่อย่อ" : "Short name"}</label>
+            <input className="input mono" value={form.short || ""} onChange={e => upd("short", e.target.value)} placeholder="SKV" style={{ maxWidth: 90 }} />
+          </div>
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
           <div className="field">
@@ -128,7 +148,7 @@ const RoomEditModal = ({ room, onClose, onSave }) => {
           </div>
           <div className="field">
             <label className="field-label">{lang === "th" ? "สี" : "Color"}</label>
-            <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+            <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
               {palette.map(c => (
                 <button key={c} onClick={() => upd("color", c)} style={{
                   width: 22, height: 22, borderRadius: 6,

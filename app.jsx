@@ -1,4 +1,4 @@
-// app.jsx — main shell, routing, role switching, tweaks
+// app.jsx — main shell, routing, role switching
 const { useState, useEffect, useMemo } = React;
 
 const DEFAULTS = /*EDITMODE-BEGIN*/{
@@ -54,27 +54,31 @@ const NAV_ITEMS = {
       { id: "approvals",       icon: "inbox", label: "nav_approvals", badge: true },
     ]},
     { group: "main", items: [
-      { id: "settings",  icon: "settings",   label: "nav_settings" },
+      { id: "settings", icon: "settings", label: "nav_settings" },
     ]},
   ],
 };
 
 const PAGE_TITLES = {
-  dashboard: ["dash_title", "dash_sub"],
-  calendar:  ["cal_title", "cal_sub"],
-  book:      ["book_title", "book_sub"],
-  equipment: ["eq_title", "eq_sub"],
-  history:   ["his_title", "his_sub"],
-  approvals: ["appr_title", "appr_sub"],
-  admin_rooms: ["adr_title", "adr_sub"],
-  admin_equipment: ["ade_title", "ade_sub"],
-  settings:  ["set_title", ""],
+  dashboard:       ["dash_title", "dash_sub"],
+  calendar:        ["cal_title",  "cal_sub"],
+  book:            ["book_title", "book_sub"],
+  equipment:       ["eq_title",   "eq_sub"],
+  history:         ["his_title",  "his_sub"],
+  approvals:       ["appr_title", "appr_sub"],
+  admin_rooms:     ["adr_title",  "adr_sub"],
+  admin_equipment: ["ade_title",  "ade_sub"],
+  settings:        ["set_title",  ""],
 };
 
-function App() {
+const currentUser = { name: "คุณ (You)", email: "you@hfc.co.th" };
+
+function AppShell() {
   const [t, setTweak] = useTweaks(DEFAULTS);
   const lang = t.lang;
   const tr = (k) => I18N[lang]?.[k] || k;
+
+  const { bookings, eqRequests, loading, apiError, reload } = useData();
 
   const [role, setRole] = useState("employee");
   const [page, setPage] = useState("dashboard");
@@ -87,11 +91,11 @@ function App() {
     document.documentElement.setAttribute("data-theme", t.theme);
     const p = accentPalette(t.accent);
     const r = document.documentElement.style;
-    r.setProperty("--accent", p.accent);
+    r.setProperty("--accent",      p.accent);
     r.setProperty("--accent-soft", p.soft);
     r.setProperty("--accent-line", p.line);
-    r.setProperty("--accent-ink", p.ink);
-    r.setProperty("--pending", p.accent);
+    r.setProperty("--accent-ink",  p.ink);
+    r.setProperty("--pending",      p.accent);
     r.setProperty("--pending-soft", p.soft);
     document.documentElement.lang = lang;
   }, [t.theme, t.accent, lang]);
@@ -117,10 +121,13 @@ function App() {
 
   const openBooking = (prefill) => navigate("book", prefill || null);
 
-  const pendingCount = useMemo(() => BOOKINGS.filter(b => b.status === "pending").length + EQ_REQUESTS.filter(r => r.status === "pending").length, []);
+  const pendingCount = useMemo(
+    () => bookings.filter(b => b.status === "pending").length + eqRequests.filter(r => r.status === "pending").length,
+    [bookings, eqRequests]
+  );
 
   const pageProps = {
-    role, navigate, openBooking, toast,
+    role, navigate, openBooking, toast, currentUser,
     selectedBookingId, setSelectedBookingId,
     prefill: bookingPrefill,
     onDone: () => navigate("history"),
@@ -128,16 +135,16 @@ function App() {
 
   const renderPage = () => {
     switch (page) {
-      case "dashboard": return <DashboardPage {...pageProps} />;
-      case "calendar":  return <CalendarPage  {...pageProps} />;
-      case "book":      return <BookingPage   {...pageProps} />;
-      case "equipment": return <EquipmentPage {...pageProps} />;
-      case "history":   return <HistoryPage   {...pageProps} />;
-      case "approvals": return <ApprovalsPage {...pageProps} />;
+      case "dashboard":       return <DashboardPage      {...pageProps} />;
+      case "calendar":        return <CalendarPage       {...pageProps} />;
+      case "book":            return <BookingPage        {...pageProps} />;
+      case "equipment":       return <EquipmentPage      {...pageProps} />;
+      case "history":         return <HistoryPage        {...pageProps} />;
+      case "approvals":       return <ApprovalsPage      {...pageProps} />;
       case "admin_rooms":     return <AdminRoomsPage     {...pageProps} />;
       case "admin_equipment": return <AdminEquipmentPage {...pageProps} />;
-      case "settings":  return <SettingsPage  {...pageProps} />;
-      default:          return null;
+      case "settings":        return <SettingsPage       {...pageProps} onReload={reload} />;
+      default: return null;
     }
   };
 
@@ -180,8 +187,8 @@ function App() {
             <div className="user-chip">
               <div className="avatar">Y</div>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div className="user-name">คุณ (You)</div>
-                <div className="user-role">you@hfc.co.th</div>
+                <div className="user-name">{currentUser.name}</div>
+                <div className="user-role">{currentUser.email}</div>
               </div>
             </div>
           </div>
@@ -205,9 +212,9 @@ function App() {
             </div>
 
             <div className="role-switch" role="tablist">
-              <button className={role === "employee" ? "active" : ""} onClick={() => setRole("employee")} title={tr("role_employee")}><span className="dot"></span><span>{tr("role_employee")}</span></button>
-              <button className={role === "approver" ? "active" : ""} onClick={() => setRole("approver")} title={tr("role_approver")}><span className="dot"></span><span>{tr("role_approver")}</span></button>
-              <button className={role === "admin" ? "active" : ""} onClick={() => setRole("admin")} title={tr("role_admin")}><span className="dot"></span><span>{tr("role_admin")}</span></button>
+              <button className={role === "employee" ? "active" : ""} onClick={() => setRole("employee")}><span className="dot"></span><span>{tr("role_employee")}</span></button>
+              <button className={role === "approver" ? "active" : ""} onClick={() => setRole("approver")}><span className="dot"></span><span>{tr("role_approver")}</span></button>
+              <button className={role === "admin"    ? "active" : ""} onClick={() => setRole("admin")}   ><span className="dot"></span><span>{tr("role_admin")}</span></button>
             </div>
 
             <button className="icon-btn" title={lang === "th" ? "การแจ้งเตือน" : "Notifications"} style={{ position: "relative" }}>
@@ -216,7 +223,24 @@ function App() {
             </button>
           </header>
 
-          <div className="content">{renderPage()}</div>
+          {/* API error banner */}
+          {apiError && (
+            <div style={{ background: "var(--danger-soft)", border: "1px solid rgba(248,113,113,.25)", borderRadius: 6, padding: "10px 16px", margin: "0 0 12px", fontSize: 12.5, display: "flex", alignItems: "center", gap: 10 }}>
+              {ico.x({ width: 14, height: 14 })}
+              <span style={{ flex: 1, color: "var(--danger)" }}>{apiError} — {lang === "th" ? "กำลังใช้ข้อมูลตัวอย่าง" : "Using demo data"}</span>
+              <button className="btn btn-sm" onClick={reload}>{lang === "th" ? "ลองใหม่" : "Retry"}</button>
+              <button className="btn btn-sm" onClick={() => navigate("settings")}>{lang === "th" ? "ตั้งค่า" : "Settings"}</button>
+            </div>
+          )}
+
+          <div className="content">
+            {loading ? (
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: 320, gap: 14, color: "var(--text-3)" }}>
+                <div style={{ width: 32, height: 32, borderRadius: "50%", border: "3px solid var(--border)", borderTopColor: "var(--accent)", animation: "spin 0.8s linear infinite" }} />
+                <span style={{ fontSize: 13 }}>{lang === "th" ? "กำลังโหลดข้อมูล…" : "Loading data…"}</span>
+              </div>
+            ) : renderPage()}
+          </div>
         </main>
 
         {/* Toasts */}
@@ -240,7 +264,6 @@ function App() {
               options={["#fbbf24", "#3b82f6", "#7c956b", "#8b5cf6", "#c8553d"]}
               onChange={v => setTweak("accent", v)} />
           </TweakSection>
-
           <TweakSection title={lang === "th" ? "ภาษา" : "Language"}>
             <TweakRadio label={lang === "th" ? "ภาษา" : "Language"} value={t.lang} options={[
               { value: "th", label: "ไทย" },
@@ -252,5 +275,18 @@ function App() {
     </I18nContext.Provider>
   );
 }
+
+function App() {
+  return (
+    <DataProvider>
+      <AppShell />
+    </DataProvider>
+  );
+}
+
+// Spinner keyframe
+const style = document.createElement("style");
+style.textContent = "@keyframes spin { to { transform: rotate(360deg); } }";
+document.head.appendChild(style);
 
 ReactDOM.createRoot(document.getElementById("root")).render(<App />);

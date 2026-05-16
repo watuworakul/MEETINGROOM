@@ -1,31 +1,44 @@
 // pages/admin-equipment.jsx
 const AdminEquipmentPage = ({ toast }) => {
   const { t, lang } = useI18n();
-  const [items, setItems] = React.useState(EQUIPMENT);
+  const { equipment, addEquipment, editEquipment, removeEquipment } = useData();
   const [editing, setEditing] = React.useState(null);
   const [confirmDel, setConfirmDel] = React.useState(null);
+  const [busy, setBusy] = React.useState(false);
 
-  const save = (item) => {
-    if (item.id) {
-      setItems(prev => prev.map(x => x.id === item.id ? item : x));
-      toast(lang === "th" ? "บันทึกข้อมูลอุปกรณ์เรียบร้อย" : "Equipment saved");
-    } else {
-      const id = "e" + Math.floor(Math.random() * 9000 + 100);
-      const created = { ...item, id, available: item.total };
-      setItems(prev => [...prev, created]);
-      toast(lang === "th" ? "เพิ่มอุปกรณ์ใหม่เรียบร้อย" : "Equipment added");
+  const save = async (item) => {
+    setBusy(true);
+    try {
+      if (item.id) {
+        await editEquipment(item);
+        toast(lang === "th" ? "บันทึกข้อมูลอุปกรณ์เรียบร้อย" : "Equipment saved");
+      } else {
+        await addEquipment(item);
+        toast(lang === "th" ? "เพิ่มอุปกรณ์ใหม่เรียบร้อย" : "Equipment added");
+      }
+      setEditing(null);
+    } catch (err) {
+      toast(lang === "th" ? `เกิดข้อผิดพลาด: ${err.message}` : `Error: ${err.message}`, "err");
+    } finally {
+      setBusy(false);
     }
-    setEditing(null);
   };
 
-  const remove = (id) => {
-    setItems(prev => prev.filter(e => e.id !== id));
-    setConfirmDel(null);
-    toast(lang === "th" ? "ยกเลิกอุปกรณ์เรียบร้อย" : "Equipment removed");
+  const doRemove = async (id) => {
+    setBusy(true);
+    try {
+      await removeEquipment(id);
+      setConfirmDel(null);
+      toast(lang === "th" ? "ยกเลิกอุปกรณ์เรียบร้อย" : "Equipment removed");
+    } catch (err) {
+      toast(lang === "th" ? `เกิดข้อผิดพลาด: ${err.message}` : `Error: ${err.message}`, "err");
+    } finally {
+      setBusy(false);
+    }
   };
 
-  const totalItems = items.reduce((s, e) => s + e.total, 0);
-  const availableItems = items.reduce((s, e) => s + e.available, 0);
+  const totalItems = equipment.reduce((s, e) => s + e.total, 0);
+  const availableItems = equipment.reduce((s, e) => s + e.available, 0);
 
   return (
     <div className="col" style={{ gap: 14 }}>
@@ -54,7 +67,7 @@ const AdminEquipmentPage = ({ toast }) => {
             </tr>
           </thead>
           <tbody>
-            {items.map(e => {
+            {equipment.map(e => {
               const Icon = ico[e.icon] || ico.box;
               return (
                 <tr key={e.id}>
@@ -92,12 +105,12 @@ const AdminEquipmentPage = ({ toast }) => {
         </table>
       </div>
 
-      {editing && <EquipEditModal item={editing.id ? editing : null} onClose={() => setEditing(null)} onSave={save} />}
+      {editing && <EquipEditModal item={editing.id ? editing : null} onClose={() => setEditing(null)} onSave={save} busy={busy} />}
       {confirmDel && (
         <Modal open onClose={() => setConfirmDel(null)} title={t("ade_confirm_delete")} sub={confirmDel.name}
           footer={<>
             <button className="btn" onClick={() => setConfirmDel(null)}>{t("cancel")}</button>
-            <button className="btn btn-danger" onClick={() => remove(confirmDel.id)}>{t("delete")}</button>
+            <button className="btn btn-danger" disabled={busy} onClick={() => doRemove(confirmDel.id)}>{t("delete")}</button>
           </>}>
           <div className="muted" style={{ fontSize: 13 }}>
             {lang === "th"
@@ -110,7 +123,7 @@ const AdminEquipmentPage = ({ toast }) => {
   );
 };
 
-const EquipEditModal = ({ item, onClose, onSave }) => {
+const EquipEditModal = ({ item, onClose, onSave, busy }) => {
   const { t, lang } = useI18n();
   const [form, setForm] = React.useState(item || { name: "", category: "Notebook", total: 1, serial: "", note: "", icon: "box" });
   const upd = (k, v) => setForm(f => ({ ...f, [k]: v }));
@@ -125,9 +138,8 @@ const EquipEditModal = ({ item, onClose, onSave }) => {
       title={item ? (lang === "th" ? "แก้ไขอุปกรณ์" : "Edit equipment") : (lang === "th" ? "เพิ่มอุปกรณ์ใหม่" : "New equipment")}
       sub={item?.id && `ID: ${item.id}`}
       footer={<>
-        {item && <button className="btn btn-danger" onClick={() => { onClose(); }} style={{ marginRight: "auto" }}>{t("ade_delete")}</button>}
         <button className="btn" onClick={onClose}>{t("cancel")}</button>
-        <button className="btn btn-primary" disabled={!form.name.trim()} onClick={() => onSave(form)}>{t("save")}</button>
+        <button className="btn btn-primary" disabled={busy || !form.name.trim()} onClick={() => onSave(form)}>{t("save")}</button>
       </>}>
       <div className="col" style={{ gap: 14 }}>
         <div className="field">

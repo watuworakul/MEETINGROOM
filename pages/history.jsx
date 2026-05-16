@@ -1,22 +1,23 @@
 // pages/history.jsx
-const HistoryPage = ({ setSelectedBookingId }) => {
+const HistoryPage = ({ setSelectedBookingId, currentUser }) => {
   const { t, lang } = useI18n();
-  const [tab, setTab] = React.useState("all"); // all | rooms | eq
+  const { bookings, eqRequests } = useData();
+  const [tab, setTab]       = React.useState("all");
   const [status, setStatus] = React.useState("all");
 
-  const myBookings = BOOKINGS.filter(b => b.email === "you@hfc.co.th").sort((a, b) => b.start - a.start);
-  const myEq = EQ_REQUESTS.filter(r => r.email === "you@hfc.co.th").sort((a, b) => b.start - a.start);
+  const myBookings = bookings.filter(b => b.email === currentUser.email).sort((a, b) => b.start - a.start);
+  const myEq       = eqRequests.filter(r => r.email === currentUser.email).sort((a, b) => b.start - a.start);
 
   const showBookings = (tab === "all" || tab === "rooms") && myBookings.filter(b => status === "all" || b.status === status);
-  const showEq = (tab === "all" || tab === "eq") && myEq.filter(r => status === "all" || r.status === status);
+  const showEq       = (tab === "all" || tab === "eq")    && myEq.filter(r => status === "all" || r.status === status);
 
   return (
     <div className="col" style={{ gap: 14 }}>
       <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
         <div className="chip-row">
-          <button className={`chip ${tab === "all" ? "on" : ""}`} onClick={() => setTab("all")}>{t("his_filter_all")}</button>
+          <button className={`chip ${tab === "all"   ? "on" : ""}`} onClick={() => setTab("all")}>{t("his_filter_all")}</button>
           <button className={`chip ${tab === "rooms" ? "on" : ""}`} onClick={() => setTab("rooms")}>{t("his_filter_rooms")}</button>
-          <button className={`chip ${tab === "eq" ? "on" : ""}`} onClick={() => setTab("eq")}>{t("his_filter_eq")}</button>
+          <button className={`chip ${tab === "eq"    ? "on" : ""}`} onClick={() => setTab("eq")}>{t("his_filter_eq")}</button>
         </div>
         <div style={{ width: 1, height: 18, background: "var(--border)" }} />
         <div className="chip-row">
@@ -37,17 +38,13 @@ const HistoryPage = ({ setSelectedBookingId }) => {
             <table className="table">
               <thead>
                 <tr>
-                  <th>{t("col_topic")}</th>
-                  <th>{t("col_room")}</th>
-                  <th>{t("col_date")}</th>
-                  <th>{t("col_time")}</th>
-                  <th>{t("col_status")}</th>
-                  <th></th>
+                  <th>{t("col_topic")}</th><th>{t("col_room")}</th><th>{t("col_date")}</th><th>{t("col_time")}</th><th>{t("col_status")}</th><th></th>
                 </tr>
               </thead>
               <tbody>
                 {showBookings && showBookings.length > 0 ? showBookings.map(b => {
-                  const room = ROOMS.find(r => r.id === b.roomId);
+                  const { rooms } = useData();
+                  const room = rooms.find(r => r.id === b.roomId);
                   return (
                     <tr key={b.id}>
                       <td>
@@ -56,7 +53,7 @@ const HistoryPage = ({ setSelectedBookingId }) => {
                           {b.meet && <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>{ico.meet({ width: 11, height: 11 })} Google Meet</span>}
                         </div>
                       </td>
-                      <td><span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}><RoomDot roomId={room.id}/> {room.short}</span></td>
+                      <td><span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}><RoomDot roomId={room?.id} /> {room?.short}</span></td>
                       <td>{fmtDate(b.start, lang)}</td>
                       <td className="mono">{fmtTime(b.start)}–{fmtTime(b.end)}</td>
                       <td><Badge status={b.status} /></td>
@@ -82,12 +79,7 @@ const HistoryPage = ({ setSelectedBookingId }) => {
           <div className="table-wrap">
             <table className="table">
               <thead>
-                <tr>
-                  <th>{t("col_equipment")}</th>
-                  <th>{t("col_qty")}</th>
-                  <th>{t("col_period")}</th>
-                  <th>{t("col_status")}</th>
-                </tr>
+                <tr><th>{t("col_equipment")}</th><th>{t("col_qty")}</th><th>{t("col_period")}</th><th>{t("col_status")}</th></tr>
               </thead>
               <tbody>
                 {showEq && showEq.length > 0 ? showEq.map(r => (

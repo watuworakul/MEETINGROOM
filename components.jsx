@@ -3,12 +3,13 @@
 const Badge = ({ status, children }) => {
   const { t } = useI18n();
   const labels = {
-    approved: t("status_approved"),
-    pending: t("status_pending"),
-    rejected: t("status_rejected"),
-    available: t("status_available"),
-    borrowed: t("status_borrowed"),
+    approved:    t("status_approved"),
+    pending:     t("status_pending"),
+    rejected:    t("status_rejected"),
+    available:   t("status_available"),
+    borrowed:    t("status_borrowed"),
     maintenance: t("status_maintenance"),
+    draft:       t("status_draft") || "—",
   };
   return (
     <span className={`badge ${status}`}>
@@ -19,8 +20,11 @@ const Badge = ({ status, children }) => {
 };
 
 const RoomDot = ({ roomId, size = 8 }) => {
-  const room = ROOMS.find(r => r.id === roomId);
-  return <span style={{ width: size, height: size, borderRadius: 99, background: room?.color || '#888', display: 'inline-block', flexShrink: 0 }} />;
+  const { rooms } = useData();
+  const room = rooms.find(r => r.id === roomId);
+  return (
+    <span style={{ width: size, height: size, borderRadius: 99, background: room?.color || "#888", display: "inline-block", flexShrink: 0 }} />
+  );
 };
 
 const SwitchToggle = ({ checked, onChange, label }) => (
@@ -41,9 +45,7 @@ const Modal = ({ open, onClose, title, sub, children, footer, width = 640 }) => 
             <div className="modal-title">{title}</div>
             {sub && <div className="modal-sub">{sub}</div>}
           </div>
-          <button className="icon-btn" onClick={onClose} aria-label="Close">
-            {ico.x()}
-          </button>
+          <button className="icon-btn" onClick={onClose} aria-label="Close">{ico.x()}</button>
         </div>
         <div className="modal-body">{children}</div>
         {footer && <div className="modal-foot">{footer}</div>}
@@ -61,7 +63,8 @@ const Empty = ({ title, sub, icon }) => (
 );
 
 const EmailPreview = ({ booking, lang = "th", from = "system@hfc.co.th" }) => {
-  const room = ROOMS.find(r => r.id === booking.roomId);
+  const { rooms } = useData();
+  const room = rooms.find(r => r.id === booking.roomId);
   const subj = lang === "th"
     ? `[อนุมัติแล้ว] ${booking.topic} · ${room?.short || ""}`
     : `[Approved] ${booking.topic} · ${room?.short || ""}`;
@@ -92,19 +95,18 @@ const EmailPreview = ({ booking, lang = "th", from = "system@hfc.co.th" }) => {
         </p>
         <table style={{ borderCollapse: "collapse", fontSize: 12.5, margin: "0 0 14px" }}>
           <tbody>
-            <tr><td style={{ padding: "3px 12px 3px 0", color: "var(--text-3)" }}>{lang === "th" ? "หัวข้อ" : "Topic"}</td><td style={{ padding: "3px 0", color: "var(--text)" }}>{booking.topic}</td></tr>
-            <tr><td style={{ padding: "3px 12px 3px 0", color: "var(--text-3)" }}>{lang === "th" ? "ห้อง" : "Room"}</td><td style={{ padding: "3px 0", color: "var(--text)" }}>{room?.name} · {lang === "th" ? "ชั้น" : "Floor"} {room?.floor}</td></tr>
-            <tr><td style={{ padding: "3px 12px 3px 0", color: "var(--text-3)" }}>{lang === "th" ? "วันที่" : "Date"}</td><td style={{ padding: "3px 0", color: "var(--text)" }}>{fmtDate(booking.start, lang)}</td></tr>
-            <tr><td style={{ padding: "3px 12px 3px 0", color: "var(--text-3)" }}>{lang === "th" ? "เวลา" : "Time"}</td><td style={{ padding: "3px 0", color: "var(--text)" }} className="mono">{fmtTime(booking.start)} – {fmtTime(booking.end)}</td></tr>
-            <tr><td style={{ padding: "3px 12px 3px 0", color: "var(--text-3)" }}>{lang === "th" ? "ผู้เข้าร่วม" : "Attendees"}</td><td style={{ padding: "3px 0", color: "var(--text)" }}>{booking.attendees} {lang === "th" ? "คน" : "people"}</td></tr>
+            <tr><td style={{ padding: "3px 12px 3px 0", color: "var(--text-3)" }}>{lang === "th" ? "หัวข้อ" : "Topic"}</td><td style={{ padding: "3px 0" }}>{booking.topic}</td></tr>
+            <tr><td style={{ padding: "3px 12px 3px 0", color: "var(--text-3)" }}>{lang === "th" ? "ห้อง" : "Room"}</td><td style={{ padding: "3px 0" }}>{room?.name} · {lang === "th" ? "ชั้น" : "Floor"} {room?.floor}</td></tr>
+            <tr><td style={{ padding: "3px 12px 3px 0", color: "var(--text-3)" }}>{lang === "th" ? "วันที่" : "Date"}</td><td style={{ padding: "3px 0" }}>{fmtDate(booking.start, lang)}</td></tr>
+            <tr><td style={{ padding: "3px 12px 3px 0", color: "var(--text-3)" }}>{lang === "th" ? "เวลา" : "Time"}</td><td style={{ padding: "3px 0" }} className="mono">{fmtTime(booking.start)} – {fmtTime(booking.end)}</td></tr>
+            <tr><td style={{ padding: "3px 12px 3px 0", color: "var(--text-3)" }}>{lang === "th" ? "ผู้เข้าร่วม" : "Attendees"}</td><td style={{ padding: "3px 0" }}>{booking.attendees} {lang === "th" ? "คน" : "people"}</td></tr>
           </tbody>
         </table>
         {booking.meet && (
           <p style={{ margin: "0 0 12px" }}>
             <span style={{ color: "var(--text-3)" }}>{lang === "th" ? "ลิงก์ Google Meet:" : "Google Meet link:"}</span>{" "}
             <a href="#" className="meet-link" onClick={(e) => e.preventDefault()}>
-              {ico.meet()}
-              {meetLink}
+              {ico.meet()} {meetLink}
             </a>
           </p>
         )}
@@ -116,9 +118,9 @@ const EmailPreview = ({ booking, lang = "th", from = "system@hfc.co.th" }) => {
   );
 };
 
-window.Badge = Badge;
-window.RoomDot = RoomDot;
+window.Badge        = Badge;
+window.RoomDot      = RoomDot;
 window.SwitchToggle = SwitchToggle;
-window.Modal = Modal;
-window.Empty = Empty;
+window.Modal        = Modal;
+window.Empty        = Empty;
 window.EmailPreview = EmailPreview;
